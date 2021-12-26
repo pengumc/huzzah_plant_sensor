@@ -1,0 +1,2 @@
+-- dofile("plant_sensor.lua")
+-- feather.start()
