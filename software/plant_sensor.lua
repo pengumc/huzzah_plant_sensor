@@ -1,5 +1,5 @@
 dofile("./account.lua") -- provides global ssid, wifi_password, mqtt_user, mqtt_password, mqtt_ip, mqtt_port
-dofile("./conf.lua") -- provides mqtt_water_topics and mqtt_moisture_topics
+dofile("./conf.lua")
 
 -- Feather will wake and take samples of all measurement inputs (can be the ADC or the i2c connected ADC)
 -- publish the values on configured mqtt 
