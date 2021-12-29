@@ -2,7 +2,7 @@ ads1115 = {
   reset = function () print("ads1115.reset")  end,
   ads1115 = function () return ads1115 end,
   setting = function (...) print("ads1115.setting") end,
-  startread = function (event) print("ads1115.startread") event(math.pi) end
+  startread = function (self, event) print("ads1115.startread") event(math.pi) end
 }
 
 gpio = {
@@ -15,9 +15,9 @@ node = {
 
 mqtt = {
   Client = function () print("mqtt.Client") return mqtt end,
-  connect = function (a, b, c) print("mqtt.connect") c() end,
-  publish = function (topic, msg) print("mqtt.publish", topic, msg) end,
-  on = function (a, msg) print("mqtt.on") mqtt.msg = msg end,
+  connect = function (self, a, b, c) print("mqtt.connect") c() end,
+  publish = function (self, topic, msg) print("mqtt.publish", topic, msg) end,
+  on = function (self, a, msg) print("mqtt.on") mqtt.msg = msg end,
   subscribe = function () print("mqtt.subscribe") end,
   unsubscribe = function () print("mqtt.unsubscribe") end,
   close = function () print("mqtt.close") end,
@@ -33,13 +33,13 @@ wifi = {
       print("wifi.sta.connect")
       wifi.event({IP="some ip"})
     end,
-    config = function (a) print("wifi.sta.config") end
+    config = function () print("wifi.sta.config") end
   }
 }
 
 tmr = {
   create = function () return tmr end,
-  register = function (a, b, c) print("tmr.register") tmr.event = c end,
+  register = function (self, a, b, c) print("tmr.register") tmr.event = c end,
   start = function () print("tmr.start") end
 }
 

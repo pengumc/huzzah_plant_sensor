@@ -26,9 +26,7 @@ max_water_time = 10e3
 
 -- Generate list of topics to subscribe to
 mqtt_subscribes = {}
-local n = 0
 for k, v in pairs(mqtt_water_topics) do
-  n = n + 1
-  mqtt_subscribes[n] = k
+  mqtt_subscribes[k] = 0
 end
 

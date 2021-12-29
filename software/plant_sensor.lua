@@ -1,5 +1,5 @@
-dofile("./account.lua") -- provides global ssid, wifi_password, mqtt_user, mqtt_password, mqtt_ip, mqtt_port
-dofile("./conf.lua")
+dofile("account.lua") -- provides global ssid, wifi_password, mqtt_user, mqtt_password, mqtt_ip, mqtt_port
+dofile("conf.lua")
 
 -- Feather will wake and take samples of all measurement inputs (can be the ADC or the i2c connected ADC)
 -- publish the values on configured mqtt 
@@ -9,7 +9,7 @@ dofile("./conf.lua")
 --    message is number of milliseconds to switch relay
 --    topic name is connected to pin via mqtt_water_topics table in conf.lua
 
-require("dummy")
+-- require("dummy")
 
 feather = {
   tmr_timeout= tmr.create(),
@@ -37,6 +37,7 @@ function feather.open_relay(pin)
 end
 
 -- setup grove i2c stuff
+------------------------
 function feather.setup_grove ()
   i2c.setup(0, 2, 1, i2c.SLOW)
   ads1115.reset()
@@ -68,18 +69,22 @@ end
 ---------------
 function feather.collect0 ()
   -- store measurements feather.measurements
-  if mqtt_moisture_topics[1] then
+  if mqtt_moisture_topics[1] and string.len(mqtt_moisture_topics[1]) > 0 then
     feather.measurements[1] = (adc.read(0) + adc.read(0) + adc.read(0) + adc.read(0))/4
   end
   feather.collect(2)
 end
 
-local ads1115_ch = {ads1115.SINGLE_0, ads1115.SINGLE_1, ads1115.SINGLE_2}
+local ads1115_ch = {
+  [2] = ads1115.SINGLE_0,
+  [3] = ads1115.SINGLE_1,
+  [4] = ads1115.SINGLE_2,
+  [5] = ads1115.SINGLE_3}
 function feather.collect(i)
   -- Recusively go through mqtt_moisture_topics 2..4
   if mqtt_moisture_topics[i] and string.len(mqtt_moisture_topics[i]) > 0  then
-    feather.adc.setting(ads1115.GAIN_4_096V, ads1115.DR_8SPS, ads1115_ch[i], ads1115.SINGLE_SHOT)
-    feather.adc.startread(function (v) feather.meas_done(i, v) end)
+    feather.adc:setting(ads1115.GAIN_4_096V, ads1115.DR_8SPS, ads1115_ch[i], ads1115.SINGLE_SHOT)
+    feather.adc:startread(function (v) feather.meas_done(i, v) end)
   else
     feather.meas_done(i, nil)
   end
@@ -98,12 +103,12 @@ end
 -------------
 function feather.setup_mqtt ()
   feather.mqtt = mqtt.Client(mqtt_name, 20, mqtt_user, mqtt_password)
-  feather.mqtt.connect(mqtt_ip, mqtt_port, function (client)
-    -- Connected succesfully, start measurements
+  feather.mqtt:connect(mqtt_ip, mqtt_port, function (client)
+    print("MQTT connected")
+    feather.mqtt:subscribe(mqtt_subscribes)
     feather.collect0()
   end)
-  feather.mqtt.on("message", feather.mqtt_message)
-  feather.mqtt.subscribe(mqtt_subscribes)
+  feather.mqtt:on("message", feather.mqtt_message)
 end
 
 function feather.mqtt_message (client, topic, msg)
@@ -116,14 +121,17 @@ function feather.mqtt_message (client, topic, msg)
   local pin = mqtt_water_topics[topic]
   if pin and val > 0 then
     -- We can only water 1 plant at a time, so unsubscribe immediately
-    feather.mqtt.unsubscribe(mqtt_subscribes)
-    feather.mqtt.close()
+    feather.mqtt:unsubscribe(mqtt_subscribes)
+    feather.mqtt:close()
     print("pin ", pin, " for ", val)
     feather.close_relay(pin)
-    feather.tmr_water.register(val, tmr.ALARM_SIGNAL, function () 
+    feather.tmr_water:register(val, tmr.ALARM_SINGLE, function () 
       feather.open_relay(pin)
+      feather.clear_led()
+      print("Watering done, sleeping...")
       node.dsleep(sleep_time) -- We assume mqtt has closed by now
     end)
+    feather.tmr_water:start()
   end
 end
 
@@ -131,7 +139,8 @@ function feather.publish ()
   -- publish feather.measurement value for each topic in mqtt_moisture_topics
   for i, topic in ipairs(mqtt_moisture_topics) do
     if string.len(topic) > 0 then
-      feather.mqtt.publish(mqtt_moisture_topics[i], feather.measurements[i], 0, 0)
+      print("publish", mqtt_moisture_topics[i], feather.measurements[i])
+      feather.mqtt:publish(mqtt_moisture_topics[i], feather.measurements[i], 0, 0)
     end
   end
 end
@@ -144,10 +153,12 @@ function feather.start ()
     feather.setup_grove()
   end
   -- Setup timers
-  feather.tmr_timeout.register(timeout, tmr.ALARM_SIGNAL, function ()
+  feather.tmr_timeout:register(timeout, tmr.ALARM_SINGLE, function ()
+    feather.clear_led()
+    print("Timeout, sleeping...")
     node.dsleep(sleep_time)
   end)
-  feather.tmr_timeout.start()
+  feather.tmr_timeout:start()
 
   -- Connect wifi
   feather.connect_wifi()
